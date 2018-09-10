@@ -4,11 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"net/http"
-	"os"
 	"testing"
-
-	"github.com/boltdb/bolt"
-	"github.com/struckoff/Shorter/store"
+	"time"
 )
 
 const (
@@ -52,7 +49,11 @@ func Benchmark_main_GET(b *testing.B) {
 
 func Benchmark_main_POST(b *testing.B) {
 	for index := 0; index < b.N; index++ {
+		b.StopTimer()
 		msg := fmt.Sprintf("%d", index)
+		d, _ := time.ParseDuration("3s")
+		time.Sleep(d)
+		b.StartTimer()
 		res, err := http.Post(serverAddress, "text/plain", bytes.NewBuffer([]byte(msg)))
 		if err != nil {
 			panic(err)
@@ -60,35 +61,4 @@ func Benchmark_main_POST(b *testing.B) {
 			b.Fatalf("Server return %d instead of 200", res.StatusCode)
 		}
 	}
-}
-
-// Бенчмарк функции сохранения полной ссылки и получения короткой
-// Полная ссылка сохраняется в БД, для нее генерируется и возвращается хэш
-
-// Running tool: /usr/bin/go test -benchmem -run=^$ -bench ^Benchmark_Store_Save$
-
-// goos: linux
-// goarch: amd64
-// Benchmark_Store_Save-8   	  200000	     17582 ns/op	    7227 B/op	      19 allocs/op
-// PASS
-// ok  	_/home/struckoff/Projects/godir/Shoter	19.250s
-// Success: Benchmarks passed.
-
-func Benchmark_Store_Save(b *testing.B) {
-	defer os.Remove(testDBPath)
-	db, _ := bolt.Open(testDBPath, 0600, nil)
-	storage := store.Store{}
-	storage.Init(db)
-	b.ResetTimer()
-
-	for index := 0; index < b.N; index++ {
-		b.StopTimer()
-		full := []byte(fmt.Sprintf("%d", index))
-		b.StartTimer()
-		_, err := storage.Save(full)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
-	storage.Close()
 }

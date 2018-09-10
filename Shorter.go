@@ -11,8 +11,6 @@ import (
 	"github.com/struckoff/Shorter/handler"
 )
 
-// Структура конфига
-
 func main() {
 	conf := configuration.Configuration{}
 	if err := conf.Read(os.Args[1]); err != nil {
