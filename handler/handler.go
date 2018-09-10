@@ -9,12 +9,12 @@ import (
 )
 
 type Handler struct {
-	store store.Store
+	storage store.Store
 }
 
 func (sh *Handler) Init(db *bolt.DB) error {
-	sh.store = store.Store{}
-	err := sh.store.Init(db)
+	sh.storage = store.Store{}
+	err := sh.storage.Init(db)
 	return err
 }
 
@@ -25,7 +25,7 @@ func (sh *Handler) doPost(ctx *fasthttp.RequestCtx) {
 	if len(fullURL) == 0 {
 		ctx.Error("Body is empty", fasthttp.StatusBadRequest)
 	}
-	short, err := sh.store.Save(fullURL)
+	short, err := sh.storage.Save(fullURL)
 	if err != nil {
 		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
 	}
@@ -37,7 +37,7 @@ func (sh *Handler) doPost(ctx *fasthttp.RequestCtx) {
 // Если ссылка уже есть в БД - возвращется текстом, иначе возвращается 404
 func (sh *Handler) doGet(ctx *fasthttp.RequestCtx) {
 	short := ctx.Path()[1:]
-	if full, err := sh.store.GetFull(short); full != nil {
+	if full, err := sh.storage.GetFull(short); full != nil {
 		// ctx.Redirect(full, fasthttp.StatusMovedPermanently)
 		fmt.Fprintf(ctx, "Full url: %s", full)
 	} else if err != nil {
