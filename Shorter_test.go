@@ -5,22 +5,11 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"reflect"
 	"testing"
 
 	"github.com/boltdb/bolt"
 	"github.com/struckoff/Shorter/store"
 )
-
-///////////////////////////////////////////////////////////
-// Host:
-
-// OS: Arch Linux
-// Kernel: x86_64 Linux 4.18.5-arch1-1-ARCH
-// CPU: Intel Core i7-7700K @ 8x 4.5GHz
-// RAM: 7325MiB / 24026MiB
-// SSD
-///////////////////////////////////////////////////////////
 
 const (
 	testDBPath    = "test.db"               // Путь к тестовой БД
@@ -73,34 +62,6 @@ func Benchmark_main_POST(b *testing.B) {
 	}
 }
 
-// Бенчмарк функции получения хэша для сборки корооткой ссылки
-
-// Running tool: /usr/bin/go test -benchmem -run=^$ -bench ^Benchmark_Store_Hash$
-
-// goos: linux
-// goarch: amd64
-// Benchmark_Store_Hash-8   	  300000	     16464 ns/op	    8757 B/op	       9 allocs/op
-// PASS
-// ok  	_/home/struckoff/Projects/godir/Shoter	5.294s
-// Success: Benchmarks passed.
-
-func Benchmark_Store_Hash(b *testing.B) {
-	defer os.Remove(testDBPath)
-	db, _ := bolt.Open(testDBPath, 0600, nil)
-	storage := store.Store{}
-	storage.Init(db)
-	b.ResetTimer()
-
-	b.StartTimer()
-	for index := 0; index < b.N; index++ {
-		_, err := storage.Hash()
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
-	b.StopTimer()
-}
-
 // Бенчмарк функции сохранения полной ссылки и получения короткой
 // Полная ссылка сохраняется в БД, для нее генерируется и возвращается хэш
 
@@ -130,40 +91,4 @@ func Benchmark_Store_Save(b *testing.B) {
 		}
 	}
 	storage.Close()
-}
-
-func TestStore_Save(t *testing.T) {
-	defer os.Remove(testDBPath)
-	db, _ := bolt.Open(testDBPath, 0600, nil)
-	storage := store.Store{}
-	storage.Init(db)
-	defer storage.Close()
-
-	type args struct {
-		fullURL []byte
-	}
-	tests := []struct {
-		fullURL []byte
-		expect  []byte
-	}{
-		{[]byte("http://tt.t"), []byte("1")},
-		{[]byte("http://tt.t/ttt"), []byte("2")},
-		{[]byte("http://tt.t/ddd"), []byte("3")},
-		{[]byte("http://tt.t"), []byte("1")},
-
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(string(tt.fullURL), func(t *testing.T) {
-			got, err := storage.SaveLocked(tt.fullURL)
-			if err != nil {
-				t.Errorf("Store.Save() error = %v", err)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.expect) {
-				t.Errorf("Store.Save() = %v, want %v", string(got), string(tt.expect))
-			}
-		})
-	}
-	db.Close()
 }

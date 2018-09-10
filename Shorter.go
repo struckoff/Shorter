@@ -26,9 +26,8 @@ func main() {
 
 	shorter := handler.Handler{}
 	shorter.Init(db)
+	defer shorter.Close()
+
 	fmt.Printf("Server run on %s\n", conf.Address)
 	fasthttp.ListenAndServe(conf.Address, shorter.Router)
-
-	shorter.Close()
-	db.Close()
 }

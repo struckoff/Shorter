@@ -3,15 +3,14 @@ package store
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"sync"
 
 	"github.com/boltdb/bolt"
 )
 
 const (
-	ALPH      = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	ALPH_LAST = int64(len(ALPH) - 1)
+	alphabet          = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	alphabetLastIndex = int64(len(alphabet) - 1)
 )
 
 type Store struct {
@@ -21,28 +20,29 @@ type Store struct {
 	wg        sync.WaitGroup
 }
 
+// Init - initialize storage, read properies from DB, start counnter gourutine to produce uniq ID
 func (s *Store) Init(db *bolt.DB) error {
 	s.idChannel = make(chan int64)
 	s.db = db
 	s.wg = sync.WaitGroup{}
 	err := s.db.Batch(func(tx *bolt.Tx) error {
 		var err error
-		// Маппинг короттких к полным ссылками
+		// shortToFull - mapping short URLs to full
 		_, err = tx.CreateBucketIfNotExists([]byte("shortToFull"))
 		if err != nil {
 			panic(err)
 		}
-		// Маппинг полных к коротким ссылками
+		// fullToShort - mapping full URLs to short
 		_, err = tx.CreateBucketIfNotExists([]byte("fullToShort"))
 		if err != nil {
 			panic(err)
 		}
 
-		// Корзина с состояниями
+		// Props - Properties bucket
 		props := tx.Bucket([]byte("Props"))
 		if props != nil {
 			LastID := props.Get([]byte("LastID"))
-			s.lastID = int64(binary.LittleEndian.Uint64(LastID))
+			s.lastID = int64(binary.LittleEndian.Uint64(LastID)) - 1
 		}
 
 		return err
@@ -50,14 +50,15 @@ func (s *Store) Init(db *bolt.DB) error {
 	if err != nil {
 		return err
 	}
-	// Счетчик для инкрементирования ID по запросу
+	// Produce incremental ID (by request from channel)
 	go func(idChannel chan int64) {
 		for {
 
 			s.lastID++
-			idChannel <- s.lastID
+			s.idChannel <- s.lastID
 
-			go s.db.Update(func(tx *bolt.Tx) error {
+			go s.db.Batch(func(tx *bolt.Tx) error {
+
 				bucket, err := tx.CreateBucketIfNotExists([]byte("Props"))
 				if err != nil {
 					panic(err)
@@ -68,19 +69,22 @@ func (s *Store) Init(db *bolt.DB) error {
 
 				return err
 			})
+
 		}
+
 	}(s.idChannel)
 
 	return nil
 }
 
+// Close - finish working with storage properly
 func (s *Store) Close() {
-	s.wg.Wait()
+	// s.wg.Wait()
+	s.db.Close()
 	// close(s.idChannel)
 }
 
-// Сохранение полной ссылки в БД,
-// получение хэша для составления короткой ссылки
+// Save - save full URL in database and returns hash for a short one
 func (s *Store) Save(fullURL []byte) ([]byte, error) {
 
 	if short, err := s.ShortURL(fullURL); short != nil {
@@ -94,18 +98,16 @@ func (s *Store) Save(fullURL []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	// Создаем горутину для записи ссылок в БД
-	go s.db.Update(func(tx *bolt.Tx) error {
+	// Saving data to database in background
+	go s.db.Batch(func(tx *bolt.Tx) error {
 		defer s.wg.Done()
 		s.wg.Add(1)
 		shortToFull := tx.Bucket([]byte("shortToFull"))
 		fullToShort := tx.Bucket([]byte("fullToShort"))
 		if err := shortToFull.Put(short, fullURL); err != nil {
-			fmt.Errorf("INSERT err: %s", err)
 			return err
 		}
 		if err := fullToShort.Put(fullURL, short); err != nil {
-			fmt.Errorf("INSERT err: %s", err)
 			return err
 		}
 
@@ -115,7 +117,7 @@ func (s *Store) Save(fullURL []byte) ([]byte, error) {
 	return short, err
 }
 
-// Тоже самое что и Save(), но ожидается завершение записи в БД
+// SaveLocked - same as Save() but waits untill date will be saved in database
 func (s *Store) SaveLocked(fullURL []byte) ([]byte, error) {
 	if short, err := s.ShortURL(fullURL); short != nil {
 		return short, nil
@@ -132,11 +134,9 @@ func (s *Store) SaveLocked(fullURL []byte) ([]byte, error) {
 		shortToFull := tx.Bucket([]byte("shortToFull"))
 		fullToShort := tx.Bucket([]byte("fullToShort"))
 		if err := shortToFull.Put(short, fullURL); err != nil {
-			fmt.Errorf("INSERT err: %s", err)
 			return err
 		}
 		if err := fullToShort.Put(fullURL, short); err != nil {
-			fmt.Errorf("INSERT err: %s", err)
 			return err
 		}
 		return nil
@@ -145,7 +145,7 @@ func (s *Store) SaveLocked(fullURL []byte) ([]byte, error) {
 	return short, err
 }
 
-// Получение полной ссылки по короткой
+// FullURL - returns full URL by short URL
 func (s *Store) FullURL(short []byte) ([]byte, error) {
 	full := []byte{}
 	err := s.db.View(func(tx *bolt.Tx) error {
@@ -157,7 +157,7 @@ func (s *Store) FullURL(short []byte) ([]byte, error) {
 	return full, err
 }
 
-// Получение короткой ссылки по полной
+// ShortURL - returns short URL by full URL
 func (s *Store) ShortURL(full []byte) ([]byte, error) {
 	short := []byte{}
 	err := s.db.View(func(tx *bolt.Tx) error {
@@ -169,22 +169,19 @@ func (s *Store) ShortURL(full []byte) ([]byte, error) {
 	return short, err
 }
 
-// Генерируем Хэш
+// Hash - produce incremental hash
 func (s *Store) Hash() ([]byte, error) {
 	var shortBuffer bytes.Buffer
 	id := <-s.idChannel
 	var err error
+	index := int64(1)
 	for id > 0 {
-		if id > ALPH_LAST {
-			index := int(id/ALPH_LAST - 1)
-			err = shortBuffer.WriteByte(ALPH[index])
-		} else {
-			err = shortBuffer.WriteByte(ALPH[id])
-		}
-		id -= ALPH_LAST
+		index = id % alphabetLastIndex
+		err = shortBuffer.WriteByte(alphabet[index])
 		if err != nil {
 			return nil, err
 		}
+		id /= alphabetLastIndex
 	}
 
 	return shortBuffer.Bytes(), nil
