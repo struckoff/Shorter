@@ -83,7 +83,7 @@ func (s *Store) Close() {
 // получение хэша для составления короткой ссылки
 func (s *Store) Save(fullURL []byte) ([]byte, error) {
 
-	if short, err := s.getShort(fullURL); short != nil {
+	if short, err := s.ShortURL(fullURL); short != nil {
 		return short, nil
 	} else if err != nil {
 		return nil, err
@@ -117,7 +117,7 @@ func (s *Store) Save(fullURL []byte) ([]byte, error) {
 
 // Тоже самое что и Save(), но ожидается завершение записи в БД
 func (s *Store) SaveLocked(fullURL []byte) ([]byte, error) {
-	if short, err := s.getShort(fullURL); short != nil {
+	if short, err := s.ShortURL(fullURL); short != nil {
 		return short, nil
 	} else if err != nil {
 		return nil, err
@@ -146,7 +146,7 @@ func (s *Store) SaveLocked(fullURL []byte) ([]byte, error) {
 }
 
 // Получение полной ссылки по короткой
-func (s *Store) GetFull(short []byte) ([]byte, error) {
+func (s *Store) FullURL(short []byte) ([]byte, error) {
 	full := []byte{}
 	err := s.db.View(func(tx *bolt.Tx) error {
 		shortToFull := tx.Bucket([]byte("shortToFull"))
@@ -158,7 +158,7 @@ func (s *Store) GetFull(short []byte) ([]byte, error) {
 }
 
 // Получение короткой ссылки по полной
-func (s *Store) getShort(full []byte) ([]byte, error) {
+func (s *Store) ShortURL(full []byte) ([]byte, error) {
 	short := []byte{}
 	err := s.db.View(func(tx *bolt.Tx) error {
 		fullToShort := tx.Bucket([]byte("fullToShort"))
@@ -176,7 +176,8 @@ func (s *Store) Hash() ([]byte, error) {
 	var err error
 	for id > 0 {
 		if id > ALPH_LAST {
-			err = shortBuffer.WriteByte(ALPH[ALPH_LAST])
+			index := int(id/ALPH_LAST - 1)
+			err = shortBuffer.WriteByte(ALPH[index])
 		} else {
 			err = shortBuffer.WriteByte(ALPH[id])
 		}
