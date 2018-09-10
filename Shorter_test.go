@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/boltdb/bolt"
+	"github.com/struckoff/Shorter/store"
 )
 
 ///////////////////////////////////////////////////////////
@@ -22,7 +23,7 @@ import (
 ///////////////////////////////////////////////////////////
 
 const (
-	testDB_path   = "test.db"               // Путь к тестовой БД
+	testDBPath    = "test.db"               // Путь к тестовой БД
 	serverAddress = "http://localhost:8081" // Адресс сервера приложения
 )
 
@@ -86,8 +87,8 @@ func Benchmark_main_POST(b *testing.B) {
 func Benchmark_Store_Hash(b *testing.B) {
 	defer os.Remove(testDB_path)
 	db, _ := bolt.Open(testDB_path, 0600, nil)
-	store := Store{}
-	store.Init(db)
+	storage := store.Store{}
+	storage.Init(db)
 	b.ResetTimer()
 
 	b.StartTimer()
@@ -113,10 +114,10 @@ func Benchmark_Store_Hash(b *testing.B) {
 // Success: Benchmarks passed.
 
 func Benchmark_Store_Save(b *testing.B) {
-	defer os.Remove(testDB_path)
-	db, _ := bolt.Open(testDB_path, 0600, nil)
-	store := Store{}
-	store.Init(db)
+	defer os.Remove(testDBPath)
+	db, _ := bolt.Open(testDBPath, 0600, nil)
+	storage := store.Store{}
+	storage.Init(db)
 	b.ResetTimer()
 
 	for index := 0; index < b.N; index++ {
@@ -132,11 +133,11 @@ func Benchmark_Store_Save(b *testing.B) {
 }
 
 func TestStore_Save(t *testing.T) {
-	defer os.Remove(testDB_path)
-	db, _ := bolt.Open(testDB_path, 0600, nil)
-	store := Store{}
-	store.Init(db)
-	defer store.Close()
+	defer os.Remove(testDBPath)
+	db, _ := bolt.Open(testDBPath, 0600, nil)
+	storage := store.Store{}
+	storage.Init(db)
+	defer storage.Close()
 
 	type args struct {
 		fullURL []byte
@@ -154,7 +155,7 @@ func TestStore_Save(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(string(tt.fullURL), func(t *testing.T) {
-			got, err := store.SaveLocked(tt.fullURL)
+			got, err := storage.SaveLocked(tt.fullURL)
 			if err != nil {
 				t.Errorf("Store.Save() error = %v", err)
 				return

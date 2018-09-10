@@ -5,13 +5,16 @@ import (
 	"os"
 
 	"github.com/boltdb/bolt"
+	"github.com/struckoff/Shorter/handler"
 	"github.com/valyala/fasthttp"
+
+	"github.com/struckoff/Shorter/configuration"
 )
 
 // Структура конфига
 
 func main() {
-	conf := Configuration{}
+	conf := configuration.Configuration{}
 	if err := conf.Read(os.Args[1]); err != nil {
 		panic(err)
 	}
@@ -21,11 +24,11 @@ func main() {
 		panic(err)
 	}
 
-	handler := Handler{}
-	handler.Init(db)
+	shorter := handler.Handler{}
+	shorter.Init(db)
 	fmt.Printf("Server run on %s\n", conf.Address)
-	fasthttp.ListenAndServe(conf.Address, handler.Router)
+	fasthttp.ListenAndServe(conf.Address, shorter.Router)
 
-	handler.store.Close()
+	handler.storage.Close()
 	db.Close()
 }
