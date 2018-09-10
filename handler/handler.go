@@ -4,15 +4,16 @@ import (
 	"fmt"
 
 	"github.com/boltdb/bolt"
+	"github.com/struckoff/Shorter/store"
 	"github.com/valyala/fasthttp"
 )
 
 type Handler struct {
-	store Store
+	store store.Store
 }
 
 func (sh *Handler) Init(db *bolt.DB) error {
-	sh.store = Store{}
+	sh.store = store.Store{}
 	err := sh.store.Init(db)
 	return err
 }
@@ -36,7 +37,7 @@ func (sh *Handler) doPost(ctx *fasthttp.RequestCtx) {
 // Если ссылка уже есть в БД - возвращется текстом, иначе возвращается 404
 func (sh *Handler) doGet(ctx *fasthttp.RequestCtx) {
 	short := ctx.Path()[1:]
-	if full, err := sh.store.getFull(short); full != nil {
+	if full, err := sh.store.GetFull(short); full != nil {
 		// ctx.Redirect(full, fasthttp.StatusMovedPermanently)
 		fmt.Fprintf(ctx, "Full url: %s", full)
 	} else if err != nil {
