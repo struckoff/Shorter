@@ -146,7 +146,7 @@ func (s *Store) SaveLocked(fullURL []byte) ([]byte, error) {
 }
 
 // Получение полной ссылки по короткой
-func (s *Store) getFull(short []byte) ([]byte, error) {
+func (s *Store) GetFull(short []byte) ([]byte, error) {
 	full := []byte{}
 	err := s.db.View(func(tx *bolt.Tx) error {
 		shortToFull := tx.Bucket([]byte("shortToFull"))
