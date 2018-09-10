@@ -65,3 +65,7 @@ func (sh *Handler) Router(ctx *fasthttp.RequestCtx) {
 	sh.doDefault(ctx)
 	return
 }
+
+func (sh *Handler) Close() {
+	sh.storage.Close()
+}

@@ -85,15 +85,15 @@ func Benchmark_main_POST(b *testing.B) {
 // Success: Benchmarks passed.
 
 func Benchmark_Store_Hash(b *testing.B) {
-	defer os.Remove(testDB_path)
-	db, _ := bolt.Open(testDB_path, 0600, nil)
+	defer os.Remove(testDBPath)
+	db, _ := bolt.Open(testDBPath, 0600, nil)
 	storage := store.Store{}
 	storage.Init(db)
 	b.ResetTimer()
 
 	b.StartTimer()
 	for index := 0; index < b.N; index++ {
-		_, err := store.Hash()
+		_, err := storage.Hash()
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -124,12 +124,12 @@ func Benchmark_Store_Save(b *testing.B) {
 		b.StopTimer()
 		full := []byte(fmt.Sprintf("%d", index))
 		b.StartTimer()
-		_, err := store.Save(full)
+		_, err := storage.Save(full)
 		if err != nil {
 			b.Fatal(err)
 		}
 	}
-	store.Close()
+	storage.Close()
 }
 
 func TestStore_Save(t *testing.T) {
