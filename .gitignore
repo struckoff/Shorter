@@ -9,5 +9,5 @@
 /vendor/
 /Godeps/
 *debug*
-*.debug
+*.db
 *.lock
