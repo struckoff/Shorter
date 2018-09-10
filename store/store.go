@@ -79,9 +79,7 @@ func (s *Store) Init(db *bolt.DB) error {
 
 // Close - finish working with storage properly
 func (s *Store) Close() {
-	// s.wg.Wait()
 	s.db.Close()
-	// close(s.idChannel)
 }
 
 // Save - save full URL in database and returns hash for a short one
